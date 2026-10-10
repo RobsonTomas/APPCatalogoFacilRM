@@ -281,6 +281,18 @@ function hideSplash(){
 }
 setTimeout(hideSplash, 8000);
 
+// ===== Rodapé e "Sobre" =====
+const APP_VERSION = "2.1";   // altere aqui quando publicar uma nova versão
+document.querySelectorAll("#year, .yr").forEach(el => el.textContent = new Date().getFullYear());   // sempre o ano atual
+$("#appVersion").textContent = APP_VERSION;
+const aboutDlg = $("#about");
+$("#aboutBtn").onclick = () => {
+  $("#aboutCount").textContent = cfg.sheet ? `${products.length} produtos · ${posts.length} posts` : "Modo demonstração";
+  aboutDlg.showModal();
+};
+$("#aboutClose").onclick = () => aboutDlg.close();
+aboutDlg.addEventListener("click", e => { if (e.target === aboutDlg) aboutDlg.close(); });
+
 // ===== PWA =====
 let deferred;
 addEventListener("beforeinstallprompt", e=>{ e.preventDefault(); deferred=e; $("#installBtn").hidden=false; });

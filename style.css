@@ -512,3 +512,43 @@ dialog::backdrop {
 .toggle[aria-pressed="true"] .ic {
 	opacity: 1
 }
+
+.foot {
+	text-align: center;
+	color: var(--muted);
+	font-size: .78rem;
+	padding: 8px 18px calc(24px + env(safe-area-inset-bottom));
+	border-top: 1px solid var(--line);
+	max-width: 1200px;
+	margin: 0 auto
+}
+
+.about-logo {
+	width: 160px;
+	max-width: 60%;
+	align-self: center;
+	border-radius: 8px
+}
+
+.about {
+	display: flex;
+	flex-direction: column;
+	gap: 10px
+}
+
+.about dt {
+	font-size: .72rem;
+	text-transform: uppercase;
+	letter-spacing: .04em;
+	color: var(--muted)
+}
+
+.about dd {
+	margin: 0;
+	font-size: .95rem;
+	line-height: 1.4
+}
+
+a.btn {
+	text-decoration: none
+}
