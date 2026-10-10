@@ -77,9 +77,11 @@ function build(rows, images){
 }
 
 // Texto da mensagem (sem link de imagem: a foto vai como arquivo)
-function message(p, v){
+const getSup = () => { try { return localStorage.getItem("catalogo-sup") === "1"; } catch { return false; } };
+const header = (p, sup) => `*${p.name}${sup && p.supplier ? " - " + p.supplier : ""}*`;
+function message(p, v, sup){
   const varTxt = [v.cor && `Cor: ${v.cor}`, v.tam && `Tamanho: ${v.tam}`].filter(Boolean).join(" | ");
-  return `*${p.name}*\n${varTxt ? varTxt+"\n" : ""}💰 À vista: *${money(v.vista)}*${v.n ? `\n💳 Ou ${v.n}x de ${money(v.vp)}` : ""}${cfg.rodape ? `\n\n${cfg.rodape}` : ""}`;
+  return `${header(p, sup)}\n${varTxt ? varTxt+"\n" : ""}💰 À vista: *${money(v.vista)}*${v.n ? `\n💳 Ou ${v.n}x de ${money(v.vp)}` : ""}${cfg.rodape ? `\n\n${cfg.rodape}` : ""}`;
 }
 
 // ===== Imagem como arquivo (para anexar de verdade) =====
@@ -112,10 +114,13 @@ const KIND = {
 let cur = null;
 
 function openComposer(kind, item){
-  cur = { kind, name:item.name, file:null, filePromise:null };
+  cur = { kind, name:item.name, item, file:null, filePromise:null };
   const k = KIND[kind];
   $("#cTitle").textContent = `${k.title} · ${item.name}`;
-  $("#cText").value = item.text;
+  const sup = getSup();
+  $("#cText").value = item.build ? item.build(sup) : item.text;
+  $("#cSup").hidden = !item.build || !item.supplier;
+  $("#cSup").setAttribute("aria-pressed", sup);
   $("#cMain").innerHTML = ic(k.icon) + k.label;
   $("#cWa").hidden = kind === "wa";               // no WhatsApp o principal já cobre
   $("#cWa").innerHTML = ic("wa") + (kind==="wa" ? "" : "WhatsApp só texto");
@@ -160,6 +165,15 @@ async function mainAction(){
   if (url) window.open(url, "_blank");
 }
 
+// "Incluir fornecedor": troca só a primeira linha (produto → produto - fornecedor), preservando o que foi editado
+$("#cSup").onclick = () => {
+  const on = $("#cSup").getAttribute("aria-pressed") !== "true", it = cur.item, ta = $("#cText");
+  const oldH = header({ name:it.name, supplier:it.supplier }, !on), newH = header({ name:it.name, supplier:it.supplier }, on);
+  if (ta.value.includes(oldH)) ta.value = ta.value.replace(oldH, () => newH);
+  else if (!ta.value.includes(newH)) return toast("A primeira linha foi editada: ajuste o nome manualmente.");
+  $("#cSup").setAttribute("aria-pressed", on);
+  try { localStorage.setItem("catalogo-sup", on ? "1" : "0"); } catch {}
+};
 $("#cMain").onclick = mainAction;
 $("#cWa").onclick = () => window.open(`https://wa.me/?text=${encodeURIComponent($("#cText").value)}`, "_blank");   // sem número: o WhatsApp pede o contato
 $("#cCopy").onclick = async () => toast(await copyText($("#cText").value) ? "Texto copiado!" : "Não foi possível copiar.");
@@ -199,7 +213,7 @@ function render(){
       el.querySelector(".name").textContent = p.name;
       el.querySelector(".sup").textContent = p.supplier;
       el.querySelectorAll(".chip").forEach(b=>b.onclick=()=>{ sel=+b.dataset.i; draw(); });
-      el.querySelectorAll(".share button").forEach(b=>b.onclick=()=>openComposer(b.dataset.k, { name:p.name, text:message(p, p.vars[sel]), url:p.img, imgId:p.imgId }));
+      el.querySelectorAll(".share button").forEach(b=>b.onclick=()=>openComposer(b.dataset.k, { name:p.name, supplier:p.supplier, build:s => message(p, p.vars[sel], s), url:p.img, imgId:p.imgId }));
     };
     draw(); $("#grid").appendChild(el);
   });

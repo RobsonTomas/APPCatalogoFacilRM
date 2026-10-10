@@ -481,3 +481,34 @@ dialog::backdrop {
 	from { opacity: 0; transform: scale(.9) }
 	to { opacity: 1; transform: none }
 }
+
+.toggle {
+	align-self: flex-start;
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	padding: 8px 14px;
+	border-radius: 999px;
+	border: 1px solid var(--line);
+	background: var(--surface);
+	color: var(--muted);
+	font-size: .85rem;
+	font-weight: 600;
+	cursor: pointer
+}
+
+.toggle .ic {
+	width: 16px;
+	height: 16px;
+	opacity: .35
+}
+
+.toggle[aria-pressed="true"] {
+	border-color: var(--accent);
+	background: var(--accent-soft);
+	color: var(--accent)
+}
+
+.toggle[aria-pressed="true"] .ic {
+	opacity: 1
+}
