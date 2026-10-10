@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Catálogo de Produtos</title>
+<meta name="description" content="Catálogo de produtos para enviar orçamentos por WhatsApp, Facebook e Instagram.">
+<meta name="theme-color" content="#fc5f2c">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="top">
+  <!-- <div class="brand"><span class="dot"></span>Catálogo</div> -->
+  <div class="brand"><img src="rm-logo.png"></div>
+  <div class="actions">
+    <button id="installBtn" class="btn ghost" hidden>Instalar</button>
+    <button id="refreshBtn" class="icon" title="Atualizar">⟳</button>
+    <button id="settingsBtn" class="icon" title="Configurações">⚙</button>
+  </div>
+</header>
+
+<section class="filters">
+  <input id="q" type="search" placeholder="Buscar produto…">
+  <select id="supplier"><option value="">Todos os fornecedores</option></select>
+</section>
+
+<p id="status" class="status"></p>
+<main id="grid" class="grid"></main>
+
+<dialog id="settings">
+  <form method="dialog" class="sheet">
+    <h2>Configurações</h2>
+    <label>ID ou link da planilha
+      <input name="sheet" placeholder="https://docs.google.com/spreadsheets/d/...">
+    </label>
+    <label>ID ou link da pasta de imagens
+      <input name="folder" placeholder="https://drive.google.com/drive/folders/...">
+    </label>
+    <label>Chave de API do Google
+      <input name="key" placeholder="AIza...">
+    </label>
+    <label>Seu WhatsApp (opcional, com DDI)
+      <input name="phone" placeholder="5511999999999">
+    </label>
+    <p class="hint">A planilha e a pasta devem estar compartilhadas como “Qualquer pessoa com o link”. Colunas: Produto, Fornecedor, Cor, Tamanho, A Vista, Parcelas, Valor Parcela. As imagens devem ter o mesmo nome do produto.</p>
+    <div class="row">
+      <button value="cancel" class="btn ghost">Cancelar</button>
+      <button value="save" class="btn">Salvar</button>
+    </div>
+  </form>
+</dialog>
+
+<div id="toast" class="toast"></div>
+<script src="app.js"></script>
+</body>
+</html>
