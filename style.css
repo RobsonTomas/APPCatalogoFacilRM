@@ -650,3 +650,9 @@ a.btn {
   align-items: center !important;
   margin: 0 !important;
 }
+
+/* Força o [hidden] a vencer dentro do modal de busca */
+#searchDialog .filters select[hidden],
+#searchDialog .filters input[hidden] {
+  display: none !important;
+}
