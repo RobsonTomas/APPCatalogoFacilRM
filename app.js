@@ -342,18 +342,12 @@ $("#aboutBtn").onclick = () => {
 $("#aboutClose").onclick = () => aboutDlg.close();
 aboutDlg.addEventListener("click", e => { if (e.target === aboutDlg) aboutDlg.close(); });
 
-// ===== PWA =====
-let deferred;
-addEventListener("beforeinstallprompt", e=>{ e.preventDefault(); deferred=e; $("#installBtn").hidden=false; });
-$("#installBtn").onclick = async ()=>{ deferred?.prompt(); deferred=null; $("#installBtn").hidden=true; };
-if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js");
-
 // ===== Modal de busca =====
 const searchDlg = $("#searchDialog");
 const searchQ = $("#searchQ");
 const searchSupplier = $("#searchSupplier");
 
-// Copia os fornecedores para o select do modal
+// Copia os fornecedores do select da página para o select do modal
 function syncSupplierOptions() {
   const original = $("#supplier");
   if (!original) return;
@@ -363,34 +357,52 @@ function syncSupplierOptions() {
 
 // Abre o modal com os valores atuais
 $("#searchBtn").onclick = () => {
+  const isPosts = view === "posts";
   searchQ.value = $("#q").value;
-  syncSupplierOptions();
+  searchQ.placeholder = isPosts ? "Buscar post…" : "Buscar produto…";
+  $("#searchTitle").textContent = isPosts ? "Buscar post" : "Buscar produto";
+  // Esconde o select de fornecedor no modo Posts
+  searchSupplier.hidden = isPosts;
+  if (!isPosts) syncSupplierOptions();
   searchDlg.showModal();
   setTimeout(() => searchQ.focus(), 100);
 };
 
-// Aplica a busca ao fechar o modal
-searchDlg.addEventListener("close", () => {
+// Aplica a busca (chamado pelo botão Buscar ou pelo Enter)
+function applySearch() {
   $("#q").value = searchQ.value;
-  $("#supplier").value = searchSupplier.value;
+  if (!searchSupplier.hidden) $("#supplier").value = searchSupplier.value;
   render();
+  searchDlg.close();
+}
+
+// Botão Buscar
+$("#searchSubmit").onclick = applySearch;
+
+// Enter no campo de texto também busca
+searchQ.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") { e.preventDefault(); applySearch(); }
 });
 
-// Fecha ao clicar fora
+// Fechar botão X
+$("#searchClose").onclick = () => searchDlg.close();
+
+// Fechar ao clicar fora
 searchDlg.addEventListener("click", (e) => {
   if (e.target === searchDlg) searchDlg.close();
 });
-
-$("#searchClose").onclick = () => searchDlg.close();
 
 // ===== Botão de voltar ao topo =====
 const backToTop = $("#backToTop");
 window.addEventListener("scroll", () => {
   backToTop.classList.toggle("show", window.scrollY > 300);
 }, { passive: true });
+backToTop.onclick = () => window.scrollTo({ top: 0, behavior: "smooth" });
 
-backToTop.onclick = () => {
-  window.scrollTo({ top: 0, behavior: "smooth" });
-};
+// ===== PWA =====
+let deferred;
+addEventListener("beforeinstallprompt", e=>{ e.preventDefault(); deferred=e; $("#installBtn").hidden=false; });
+$("#installBtn").onclick = async ()=>{ deferred?.prompt(); deferred=null; $("#installBtn").hidden=true; };
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js");
 
 load();
