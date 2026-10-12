@@ -1,3 +1,4 @@
+cont APP_VERSION = "1.4";
 const CACHE = "catalogo-v4";
 const SHELL = ["./", "index.html", "style.css", "app.js", "config.js", "manifest.json", "rm-logo.png", "icons/favicon.ico", "icons/icon-192.png", "icons/icon-512.png", "icons/icon-maskable-192.png", "icons/icon-maskable-512.png", "icons/apple-touch-icon.png"];
 self.addEventListener("install", e => { e.waitUntil(caches.open(CACHE).then(c => Promise.allSettled(SHELL.map(u => c.add(u))))); self.skipWaiting(); });
