@@ -46,16 +46,12 @@ async function loadSheet(){
 // Lista as imagens de uma pasta do Drive
 async function loadFolder(folder){
   const id = idFrom(folder);
-  if (!id || !cfg.key) return [];
-  const out = []; let token = "";
-  do {
-    const u = `https://www.googleapis.com/drive/v3/files?q='${id}'+in+parents+and+trashed=false&fields=nextPageToken,files(id,name,mimeType,modifiedTime)&pageSize=1000&key=${cfg.key}${token?`&pageToken=${token}`:""}`;
-    const r = await fetch(u); const j = await r.json();
-    if (!r.ok) throw new Error("Erro ao ler a pasta de imagens: " + (j.error?.message||r.status));
-    out.push(...j.files.filter(f=>f.mimeType.startsWith("image/")));
-    token = j.nextPageToken;
-  } while (token);
-  return out;
+  if (!id || !cfg.proxyUrl) return [];
+  const u = `${cfg.proxyUrl}?folderId=${id}`;
+  const r = await fetch(u);
+  const j = await r.json();
+  if (!r.ok || j.error) throw new Error("Erro ao ler a pasta de imagens: " + (j.error || r.status));
+  return j.files;
 }
 
 function build(rows, images){

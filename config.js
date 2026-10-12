@@ -20,7 +20,7 @@ window.CATALOGO_CONFIG = {
   postsFolder: "https://drive.google.com/drive/u/4/folders/1sS5TBZjwS8cwP5wtRybJAfdBTLtUlQk5",
 
   // Chave de API do Google (Drive API)
-  key: "AIzaSyBPqXMs0ommTRAJmX9wtSerlf6eKQchvrg",
+  proxyUrl: "https://script.google.com/macros/s/AKfycbzNWZjCYTNiqoQcLTJl26Mi3SjeBZu3GUTeDNtpksDUlxVXv9BYfXhJmAJk_o6Da850/exec",
 
   // Texto opcional adicionado no final de toda mensagem (ex.: endereço, horário, telefone)
   rodape: "Entregas e montagem grátis para Ubá e região."
