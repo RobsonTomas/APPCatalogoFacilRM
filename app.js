@@ -291,10 +291,11 @@ async function load(){
     ]);
     products = build(rows, imgs);
     posts = pst.sort((a,b) => (b.modifiedTime||"").localeCompare(a.modifiedTime||""));
-    const sups = [...new Set(products.map(p=>p.supplier).filter(Boolean))].sort();
-    $("#supplier").innerHTML = `<option value="">Todos os fornecedores</option>` + sups.map(s=>`<option>${esc(s)}</option>`).join("");
-    $("#tabs").hidden = !idFrom(cfg.postsFolder);
-    render();
+		const sups = [...new Set(products.map(p=>p.supplier).filter(Boolean))].sort();
+		$("#supplier").innerHTML = `<option value="">Todos os fornecedores</option>` + sups.map(s=>`<option>${esc(s)}</option>`).join("");
+		syncSupplierOptions();   // ← adicione esta linha
+		$("#tabs").hidden = !idFrom(cfg.postsFolder);
+		render();
     if (!cfg.sheet) $("#status").textContent = "Exemplo de demonstração — preencha o arquivo config.js para conectar sua planilha.";
     if (postsErr) $("#status").textContent = postsErr;
   } catch(e){ $("#status").textContent = e.message; }
@@ -346,5 +347,50 @@ let deferred;
 addEventListener("beforeinstallprompt", e=>{ e.preventDefault(); deferred=e; $("#installBtn").hidden=false; });
 $("#installBtn").onclick = async ()=>{ deferred?.prompt(); deferred=null; $("#installBtn").hidden=true; };
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js");
+
+// ===== Modal de busca =====
+const searchDlg = $("#searchDialog");
+const searchQ = $("#searchQ");
+const searchSupplier = $("#searchSupplier");
+
+// Copia os fornecedores para o select do modal
+function syncSupplierOptions() {
+  const original = $("#supplier");
+  if (!original) return;
+  searchSupplier.innerHTML = original.innerHTML;
+  searchSupplier.value = original.value;
+}
+
+// Abre o modal com os valores atuais
+$("#searchBtn").onclick = () => {
+  searchQ.value = $("#q").value;
+  syncSupplierOptions();
+  searchDlg.showModal();
+  setTimeout(() => searchQ.focus(), 100);
+};
+
+// Aplica a busca ao fechar o modal
+searchDlg.addEventListener("close", () => {
+  $("#q").value = searchQ.value;
+  $("#supplier").value = searchSupplier.value;
+  render();
+});
+
+// Fecha ao clicar fora
+searchDlg.addEventListener("click", (e) => {
+  if (e.target === searchDlg) searchDlg.close();
+});
+
+$("#searchClose").onclick = () => searchDlg.close();
+
+// ===== Botão de voltar ao topo =====
+const backToTop = $("#backToTop");
+window.addEventListener("scroll", () => {
+  backToTop.classList.toggle("show", window.scrollY > 300);
+}, { passive: true });
+
+backToTop.onclick = () => {
+  window.scrollTo({ top: 0, behavior: "smooth" });
+};
 
 load();

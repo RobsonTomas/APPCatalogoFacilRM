@@ -552,3 +552,43 @@ dialog::backdrop {
 a.btn {
 	text-decoration: none
 }
+
+/* Botão de voltar ao topo */
+.back-to-top {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 10;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  color: var(--text);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, .12);
+  cursor: pointer;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  transition: opacity .25s, transform .25s;
+}
+.back-to-top.show {
+  display: inline-flex;
+  animation: fadeInUp .25s ease;
+}
+.back-to-top:hover {
+  transform: translateY(-2px);
+}
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Ajuste do modal de busca */
+#searchDialog .filters {
+  padding: 0;
+}
+#searchDialog .filters input,
+#searchDialog .filters select {
+  flex: 1 1 100%;
+}
