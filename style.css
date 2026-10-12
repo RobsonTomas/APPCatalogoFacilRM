@@ -583,7 +583,19 @@ a.btn {
   from { opacity: 0; transform: translateY(8px); }
   to   { opacity: 1; transform: translateY(0); }
 }
-/* ===== Modal de busca (overrides finais) ===== */
+
+/* ===== Modal de busca ===== */
+#searchDialog {
+  background: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+}
+
+#searchDialog::backdrop {
+  background: rgba(0, 0, 0, .5) !important;
+  backdrop-filter: blur(2px);
+}
+
 #searchDialog .sheet {
   width: min(440px, 92vw) !important;
   padding: 20px !important;
@@ -592,6 +604,10 @@ a.btn {
   flex-direction: column !important;
   gap: 14px !important;
   align-items: stretch !important;
+  background: var(--surface) !important;
+  color: var(--text) !important;
+  border-radius: 14px !important;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, .35) !important;
 }
 
 #searchDialog .sheet-head {
@@ -635,11 +651,4 @@ a.btn {
   justify-content: center !important;
   align-items: center !important;
   margin: 0 !important;
-}
-
-
-@media (min-width: 600px) {   /* ou 768px, 900px, etc. */
-  .filters input { max-width: 400px; }
-  .filters select { flex: 0 0 auto; }
-  .filters { display: flex; flex-direction: row; }
 }
