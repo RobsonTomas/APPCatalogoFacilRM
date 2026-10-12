@@ -589,15 +589,13 @@ a.btn {
   background: transparent !important;
   border: none !important;
   padding: 0 !important;
-}
-
-#searchDialog::backdrop {
-  background: rgba(0, 0, 0, .5) !important;
-  backdrop-filter: blur(2px);
+  width: min(440px, 92vw) !important;
+  max-height: 92vh !important;
+  overflow: visible !important;
 }
 
 #searchDialog .sheet {
-  width: min(440px, 92vw) !important;
+  width: 100% !important;
   padding: 20px !important;
   box-sizing: border-box !important;
   display: flex !important;
