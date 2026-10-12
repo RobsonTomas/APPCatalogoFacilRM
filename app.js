@@ -47,10 +47,30 @@ async function loadSheet(){
 async function loadFolder(folder){
   const id = idFrom(folder);
   if (!id || !cfg.proxyUrl) return [];
+
+  const cacheKey = `folder_${id}`;
+  const ttl = 10 * 60 * 1000; // 10 minutos
+
+  // Tenta usar o cache
+  try {
+    const cached = localStorage.getItem(cacheKey);
+    if (cached) {
+      const { ts, files } = JSON.parse(cached);
+      if (Date.now() - ts < ttl) return files;
+    }
+  } catch (e) { /* cache corrompido, ignora */ }
+
+  // Cache expirado ou inexistente: chama o proxy
   const u = `${cfg.proxyUrl}?folderId=${id}`;
   const r = await fetch(u);
   const j = await r.json();
   if (!r.ok || j.error) throw new Error("Erro ao ler a pasta de imagens: " + (j.error || r.status));
+
+  // Guarda no cache
+  try {
+    localStorage.setItem(cacheKey, JSON.stringify({ ts: Date.now(), files: j.files }));
+  } catch (e) { /* localStorage cheio, ignora */ }
+
   return j.files;
 }
 
@@ -59,25 +79,37 @@ function build(rows, images){
   images.forEach(f => imgMap[norm(f.name)] = { id:f.id, url:thumb(f.id) });
   const head = rows[0].map(norm);
   const col = (...names) => head.findIndex(h => names.some(n => h.includes(n)));
-  const c = { p:col("produto","nome"), f:col("fornecedor"), cor:col("cor"), t:col("tamanho"), v:col("vista"), n:col("parcelas","qtd"), vp:col("valor parcela","parcela") };
+  const c = { p:col("produto","nome"), f:col("fornecedor"), cod:col("codigo","código","sku","referencia","referência"), cor:col("cor"), t:col("tamanho"), v:col("vista"), n:col("parcelas","qtd"), vp:col("valor parcela","parcela") };
   if (c.vp === c.n) c.vp = head.findIndex((h,i)=>i!==c.n && h.includes("parcela"));
   const g = {};
   rows.slice(1).forEach(r=>{
     const name=(r[c.p]||"").trim(); if(!name) return;
     const key = name+"|"+(r[c.f]||"");
     const im = imgMap[norm(name)];
-    g[key] ??= { name, supplier:(r[c.f]||"").trim(), vars:[], img: im?.url, imgId: im?.id };
+    g[key] ??= { name, supplier:(r[c.f]||"").trim(), code:(r[c.cod]||"").trim(), vars:[], img: im?.url, imgId: im?.id };
     g[key].vars.push({ cor:r[c.cor]||"", tam:r[c.t]||"", vista:r[c.v]||"", n:r[c.n]||"", vp:r[c.vp]||"" });
   });
   return Object.values(g);
 }
 
 // Texto da mensagem (sem link de imagem: a foto vai como arquivo)
+// const getSup = () => { try { return localStorage.getItem("catalogo-sup") === "1"; } catch { return false; } };
+// const header = (p, sup) => `*${p.name}${sup && p.supplier ? " - " + p.supplier : ""}*`;
+// function message(p, v, sup){
+//   const varTxt = [v.cor && `Cor: ${v.cor}`, v.tam && `Tamanho: ${v.tam}`].filter(Boolean).join(" | ");
+//   return `${header(p, sup)}\n${varTxt ? varTxt+"\n" : ""}💰 À vista: *${money(v.vista)}*${v.n ? `\n💳 Ou ${v.n}x de ${money(v.vp)}` : ""}${cfg.rodape ? `\n\n${cfg.rodape}` : ""}`;
+// } - antigo
 const getSup = () => { try { return localStorage.getItem("catalogo-sup") === "1"; } catch { return false; } };
-const header = (p, sup) => `*${p.name}${sup && p.supplier ? " - " + p.supplier : ""}*`;
-function message(p, v, sup){
+const getCod = () => { try { return localStorage.getItem("catalogo-cod") === "1"; } catch { return false; } };
+const header = (p, sup, cod) => {
+  const parts = [p.name];
+  if (cod && p.code) parts.push(`Cód: ${p.code}`);
+  if (sup && p.supplier) parts.push(p.supplier);
+  return `*${parts.join(" - ")}*`;
+};
+function message(p, v, sup, cod){
   const varTxt = [v.cor && `Cor: ${v.cor}`, v.tam && `Tamanho: ${v.tam}`].filter(Boolean).join(" | ");
-  return `${header(p, sup)}\n${varTxt ? varTxt+"\n" : ""}💰 À vista: *${money(v.vista)}*${v.n ? `\n💳 Ou ${v.n}x de ${money(v.vp)}` : ""}${cfg.rodape ? `\n\n${cfg.rodape}` : ""}`;
+  return `${header(p, sup, cod)}\n${varTxt ? varTxt+"\n" : ""}💰 À vista: *${money(v.vista)}*${v.n ? `\n💳 Ou ${v.n}x de ${money(v.vp)}` : ""}${cfg.rodape ? `\n\n${cfg.rodape}` : ""}`;
 }
 
 // ===== Imagem como arquivo (para anexar de verdade) =====
@@ -113,10 +145,12 @@ function openComposer(kind, item){
   cur = { kind, name:item.name, item, file:null, filePromise:null };
   const k = KIND[kind];
   $("#cTitle").textContent = `${k.title} · ${item.name}`;
-  const sup = getSup();
-  $("#cText").value = item.build ? item.build(sup) : item.text;
+  const sup = getSup(), cod = getCod();
+  $("#cText").value = item.build ? item.build(sup, cod) : item.text;
   $("#cSup").hidden = !item.build || !item.supplier;
   $("#cSup").setAttribute("aria-pressed", sup);
+  $("#cCod").hidden = !item.build || !item.code;
+  $("#cCod").setAttribute("aria-pressed", cod);
   $("#cMain").innerHTML = ic(k.icon) + k.label;
   $("#cWa").hidden = kind === "wa";               // no WhatsApp o principal já cobre
   $("#cWa").innerHTML = ic("wa") + (kind==="wa" ? "" : "WhatsApp só texto");
@@ -162,14 +196,32 @@ async function mainAction(){
 }
 
 // "Incluir fornecedor": troca só a primeira linha (produto → produto - fornecedor), preservando o que foi editado
-$("#cSup").onclick = () => {
-  const on = $("#cSup").getAttribute("aria-pressed") !== "true", it = cur.item, ta = $("#cText");
-  const oldH = header({ name:it.name, supplier:it.supplier }, !on), newH = header({ name:it.name, supplier:it.supplier }, on);
+// $("#cSup").onclick = () => {
+//   const on = $("#cSup").getAttribute("aria-pressed") !== "true", it = cur.item, ta = $("#cText");
+//   const oldH = header({ name:it.name, supplier:it.supplier }, !on), newH = header({ name:it.name, supplier:it.supplier }, on);
+//   if (ta.value.includes(oldH)) ta.value = ta.value.replace(oldH, () => newH);
+//   else if (!ta.value.includes(newH)) return toast("A primeira linha foi editada: ajuste o nome manualmente.");
+//   $("#cSup").setAttribute("aria-pressed", on);
+//   try { localStorage.setItem("catalogo-sup", on ? "1" : "0"); } catch {}
+// };
+function toggleHeader(which){
+  const it = cur.item, ta = $("#cText");
+  const supNow = getSup(), codNow = getCod();
+  const sup = which === "sup" ? !supNow : supNow;
+  const cod = which === "cod" ? !codNow : codNow;
+  const oldH = header({ name:it.name, supplier:it.supplier, code:it.code }, supNow, codNow);
+  const newH = header({ name:it.name, supplier:it.supplier, code:it.code }, sup, cod);
   if (ta.value.includes(oldH)) ta.value = ta.value.replace(oldH, () => newH);
   else if (!ta.value.includes(newH)) return toast("A primeira linha foi editada: ajuste o nome manualmente.");
-  $("#cSup").setAttribute("aria-pressed", on);
-  try { localStorage.setItem("catalogo-sup", on ? "1" : "0"); } catch {}
-};
+  try {
+    localStorage.setItem("catalogo-sup", sup ? "1" : "0");
+    localStorage.setItem("catalogo-cod", cod ? "1" : "0");
+  } catch {}
+  $("#cSup").setAttribute("aria-pressed", String(sup));
+  $("#cCod").setAttribute("aria-pressed", String(cod));
+}
+$("#cSup").onclick = () => toggleHeader("sup");
+$("#cCod").onclick = () => toggleHeader("cod");
 $("#cMain").onclick = mainAction;
 $("#cWa").onclick = () => window.open(`https://wa.me/?text=${encodeURIComponent($("#cText").value)}`, "_blank");   // sem número: o WhatsApp pede o contato
 $("#cCopy").onclick = async () => toast(await copyText($("#cText").value) ? "Texto copiado!" : "Não foi possível copiar.");
@@ -209,7 +261,7 @@ function render(){
       el.querySelector(".name").textContent = p.name;
       el.querySelector(".sup").textContent = p.supplier;
       el.querySelectorAll(".chip").forEach(b=>b.onclick=()=>{ sel=+b.dataset.i; draw(); });
-      el.querySelectorAll(".share button").forEach(b=>b.onclick=()=>openComposer(b.dataset.k, { name:p.name, supplier:p.supplier, build:s => message(p, p.vars[sel], s), url:p.img, imgId:p.imgId }));
+      el.querySelectorAll(".share button").forEach(b=>b.onclick=()=>openComposer(b.dataset.k, { name:p.name, supplier:p.supplier, code:p.code, build:(s, c) => message(p, p.vars[sel], s, c), url:p.img, imgId:p.imgId }));
     };
     draw(); $("#grid").appendChild(el);
   });
