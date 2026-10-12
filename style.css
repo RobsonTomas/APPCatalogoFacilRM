@@ -584,42 +584,64 @@ a.btn {
   to   { opacity: 1; transform: translateY(0); }
 }
 
-/* Ajuste do modal de busca */
-#searchDialog .filters {
+/* ===== Modal de busca ===== */
+#searchDialog {
   padding: 0;
-}
-#searchDialog .filters input,
-#searchDialog .filters select {
-  flex: 1 1 100%;
+  border: none;
+  background: transparent;
 }
 
-/* Modal de busca */
 #searchDialog .sheet {
-  width: min(480px, 92vw);
+  width: min(440px, 92vw);
+  padding: 20px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* Zera qualquer padding/margem que o cabeçalho, filtros e ações possam ter herdado */
+#searchDialog .sheet-head,
+#searchDialog .filters,
+#searchDialog .acts {
+  margin: 0;
+  padding: 0;
+}
+
+#searchDialog .sheet-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
 #searchDialog .filters {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  padding: 0;
 }
 
+/* Força input e select a terem exatamente a mesma largura do botão */
 #searchDialog .filters input,
 #searchDialog .filters select {
   width: 100%;
-  box-sizing: border-box;
   min-width: 0;
+  max-width: none;
+  flex: none;
+  box-sizing: border-box;
+  display: block;
+  margin: 0;
 }
 
+/* Botão ocupa a largura toda também */
 #searchDialog .acts {
-  display: flex;
-  justify-content: stretch;
-  margin-top: 14px;
-  padding: 0;
+  display: block;
 }
 
 #searchDialog .btn.main {
   width: 100%;
+  box-sizing: border-box;
+  display: flex;
   justify-content: center;
+  align-items: center;
+  margin: 0;
 }
