@@ -49,7 +49,7 @@ async function loadFolder(folder){
   if (!id || !cfg.proxyUrl) return [];
 
   const cacheKey = `folder_${id}`;
-  const ttl = 10 * 60 * 1000; // 10 minutos
+  const ttl = 3 * 60 * 1000; // 10 minutos
 
   // Tenta usar o cache
   try {
