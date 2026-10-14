@@ -20,7 +20,6 @@ window.CATALOGO_CONFIG = {
   postsFolder: "https://drive.google.com/drive/u/4/folders/1sS5TBZjwS8cwP5wtRybJAfdBTLtUlQk5",
 
   // Chave de API do Google (Drive API)
-<<<<<<< HEAD
   // Pasta do Drive com os VÍDEOS para postagem
   videosFolder: "https://drive.google.com/drive/folders/10LKKo8IFqoAP-Bd0fd3T0Iox5Avh2Fe1",
 
@@ -29,10 +28,3 @@ window.CATALOGO_CONFIG = {
   // Texto opcional adicionado no final de toda mensagem (ex.: endereço, horário, telefone)
   rodape: "Entrega e montagem grátis para Ubá e região."
 };
-=======
-  proxyUrl: "https://script.google.com/macros/s/AKfycbzNWZjCYTNiqoQcLTJl26Mi3SjeBZu3GUTeDNtpksDUlxVXv9BYfXhJmAJk_o6Da850/exec",
-
-  // Texto opcional adicionado no final de toda mensagem (ex.: endereço, horário, telefone)
-  rodape: "Entregas e montagem grátis para Ubá e região."
-};
->>>>>>> ae4a9fc741c10550f09c48b3b38739c24953c01b
