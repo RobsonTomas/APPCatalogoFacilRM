@@ -34,6 +34,8 @@
   <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
   <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></symbol>
   <symbol id="i-mail" viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></symbol>
+  <symbol id="i-video" viewBox="0 0 24 24"><path d="m16 13 5.223 3.482a.5.5 0 0 0 .777-.416V7.87a.5.5 0 0 0-.752-.432L16 10.5"/><rect x="2" y="6" width="14" height="12" rx="2"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24"><path d="M6 3 20 12 6 21Z"/></symbol>
   <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></symbol>
   <symbol id="i-bag" viewBox="0 0 24 24"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></symbol>
   <symbol id="i-image" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></symbol>
@@ -62,8 +64,9 @@
 </header>
 
 <nav id="tabs" class="tabs" hidden>
-  <button data-v="products" class="on"><svg class="ic"><use href="#i-bag"/></svg>Produtos</button>
-  <button data-v="posts"><svg class="ic"><use href="#i-image"/></svg>Posts</button>
+  <button data-v="products" class="on"><svg class="ic"><use href="#i-bag"/></svg>Produtos<span class="pill" hidden></span></button>
+  <button data-v="posts"><svg class="ic"><use href="#i-image"/></svg>Posts<span class="pill" hidden></span></button>
+  <button data-v="videos"><svg class="ic"><use href="#i-video"/></svg>Vídeos<span class="pill" hidden></span></button>
 </nav>
 
 <section class="filters">

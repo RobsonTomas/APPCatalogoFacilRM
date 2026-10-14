@@ -5,7 +5,7 @@ const fromFile = Object.fromEntries(Object.entries(window.CATALOGO_CONFIG || {})
 const cfg = { ...legacy, ...fromFile };
 
 const $ = s => document.querySelector(s);
-let products = [], posts = [], view = "products";
+let products = [], posts = [], videos = [], view = "products";
 
 const DEMO = [
   ["Produto","Fornecedor","Cor","Tamanho","A Vista","Parcelas","Valor Parcela"],
@@ -23,6 +23,9 @@ const slug = s => norm(s).replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"") || "im
 const esc = s => String(s??"").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const ic = n => `<svg class="ic" aria-hidden="true"><use href="#i-${n}"/></svg>`;
 const toast = t => { const el = $("#toast"); el.textContent = t; el.classList.add("show"); clearTimeout(toast.t); toast.t = setTimeout(()=>el.classList.remove("show"), 2600); };
+const driveView = id => `https://drive.google.com/file/d/${id}/view`;
+const driveDownload = id => `https://drive.google.com/uc?export=download&id=${id}`;
+const openUrl = u => { const w = window.open(u, "_blank"); if (!w) location.href = u; };
 const thumb = (id, w=800) => `https://drive.google.com/thumbnail?id=${id}&sz=w${w}`;
 
 function parseCSV(text){
@@ -139,11 +142,23 @@ const KIND = {
   ig:   { icon:"ig",    label:"Enviar no Instagram", title:"Instagram" },
   more: { icon:"share", label:"Compartilhar",        title:"Compartilhar" },
 };
+const VKIND = {   // vídeo: o arquivo não vai anexado, então WhatsApp envia o link e Instagram/Facebook baixam o vídeo
+  wa:   { label:"Enviar link no WhatsApp" },
+  fb:   { label:"Baixar vídeo e postar no Facebook" },
+  ig:   { label:"Baixar vídeo e postar no Instagram" },
+  more: { label:"Compartilhar link do vídeo" },
+};
+const videoHint = kind => ({
+  wa:   "O WhatsApp abre e você escolhe o contato. Vai o texto com o link do vídeo (quem receber assiste pelo link).",
+  more: "Abre o menu do celular com o texto e o link do vídeo.",
+  fb:   "O vídeo é baixado e a legenda é copiada. Depois, ao criar a postagem, escolha o vídeo na galeria e cole a legenda.",
+  ig:   "O vídeo é baixado e a legenda é copiada. Depois, ao criar a postagem, escolha o vídeo na galeria e cole a legenda.",
+}[kind]);
 let cur = null;
 
 function openComposer(kind, item){
   cur = { kind, name:item.name, item, file:null, filePromise:null };
-  const k = KIND[kind];
+  const k = item.video ? { ...KIND[kind], ...VKIND[kind] } : KIND[kind];
   $("#cTitle").textContent = `${k.title} · ${item.name}`;
   const sup = getSup(), cod = getCod();
   $("#cText").value = item.build ? item.build(sup, cod) : item.text;
@@ -155,11 +170,15 @@ function openComposer(kind, item){
   $("#cWa").hidden = kind === "wa";               // no WhatsApp o principal já cobre
   $("#cWa").innerHTML = ic("wa") + (kind==="wa" ? "" : "WhatsApp só texto");
   $("#cSave").hidden = !item.imgId;
+  $("#cSave").innerHTML = ic("download") + (item.video ? "Baixar vídeo" : "Salvar foto");
   const box = $("#cImg");
   box.hidden = !item.url;
-  box.innerHTML = item.url ? `<img src="${esc(item.url)}" alt="">` : "";
+  box.innerHTML = !item.url ? "" : item.video
+    ? `<a class="vprev" href="${esc(driveView(item.imgId))}" target="_blank" rel="noopener" title="Assistir"><img src="${esc(item.url)}" alt="" onerror="this.remove()"><span class="play"><i>${ic("play")}</i></span></a>`
+    : `<img src="${esc(item.url)}" alt="">`;
   $("#cHint").textContent = "Carregando foto…";
-  if (item.imgId){
+  if (item.video){ $("#cHint").textContent = videoHint(kind); }
+  else if (item.imgId){
     cur.filePromise = fetchImageFile(item.imgId, item.name).then(f => {
       if (!cur) return null; cur.file = f;
       $("#cHint").textContent = hint(kind, f);
@@ -175,7 +194,21 @@ function hint(kind, file){
   return "Este navegador não anexa fotos direto: o texto é copiado e a foto é baixada para você anexar.";
 }
 
+// Vídeo: WhatsApp = texto com link; Instagram/Facebook = baixa o vídeo + copia a legenda
+async function videoAction(){
+  const { kind, item } = cur, text = $("#cText").value;
+  if (kind === "wa") return void openUrl(`https://wa.me/?text=${encodeURIComponent(text)}`);
+  if (kind === "more" && navigator.share){
+    try { await navigator.share({ title:item.name, text }); } catch (e) {}
+    return;
+  }
+  await copyText(text);
+  openUrl(driveDownload(item.imgId));
+  toast("Legenda copiada. Salve o vídeo e escolha-o na galeria ao postar.");
+}
+
 async function mainAction(){
+  if (cur.item.video) return videoAction();
   const { kind } = cur, text = $("#cText").value;
   if (kind !== "wa") await copyText(text);                 // Instagram/Facebook ignoram o texto do compartilhamento
   const file = cur.file || await cur.filePromise;
@@ -225,7 +258,7 @@ $("#cCod").onclick = () => toggleHeader("cod");
 $("#cMain").onclick = mainAction;
 $("#cWa").onclick = () => window.open(`https://wa.me/?text=${encodeURIComponent($("#cText").value)}`, "_blank");   // sem número: o WhatsApp pede o contato
 $("#cCopy").onclick = async () => toast(await copyText($("#cText").value) ? "Texto copiado!" : "Não foi possível copiar.");
-$("#cSave").onclick = async () => { const f = cur.file || await cur.filePromise; f ? downloadFile(f) : toast("Não foi possível baixar a foto."); };
+$("#cSave").onclick = async () => { if (cur.item.video) return openUrl(driveDownload(cur.item.imgId)); const f = cur.file || await cur.filePromise; f ? downloadFile(f) : toast("Não foi possível baixar a foto."); };
 $("#cClose").onclick = () => dlg.close();
 dlg.addEventListener("click", e => { if (e.target === dlg) dlg.close(); });
 dlg.addEventListener("close", () => { cur = null; });
@@ -237,12 +270,44 @@ const shareBtns = `
   <button data-k="ig" title="Instagram" aria-label="Enviar no Instagram">${ic("ig")}</button>
   <button data-k="more" title="Mais opções" aria-label="Mais opções de envio">${ic("share")}</button>`;
 
+// ===== Selo "Novo" (guarda no aparelho o que você já viu; sem servidor, sem custo) =====
+const SEEN_KEY = "catalogo-visto";
+const fresh = { products:new Set(), posts:new Set(), videos:new Set() }, visited = { products:false, posts:false, videos:false };
+const keysNow = () => ({ products: products.map(p => p.name+"|"+p.supplier), posts: posts.map(f => f.id), videos: videos.map(f => f.id) });
+const readSeen = () => { try { return JSON.parse(localStorage.getItem(SEEN_KEY)); } catch { return null; } };
+const writeSeen = o => { try { localStorage.setItem(SEEN_KEY, JSON.stringify(o)); } catch {} };
+
+function detectFresh(ok){            // ok = { products:bool, posts:bool } -> só compara o que carregou sem erro
+  const now = keysNow(), seen = readSeen();
+  if (!seen) { writeSeen(now); return; }                       // primeiro uso: nada é "novo"
+  for (const k of ["products","posts","videos"]){
+    if (!ok[k]) continue;
+    if (!seen[k]) { seen[k] = now[k]; writeSeen(seen); continue; }
+    now[k].filter(x => !seen[k].includes(x)).forEach(x => fresh[k].add(x));
+  }
+}
+function visit(kind){                // abriu a aba: marca como visto (os "Novo" continuam até recarregar)
+  const cur = keysNow()[kind]; if (visited[kind] || !cur.length) return;   // lista vazia = erro de carga: não sobrescreve o histórico
+  visited[kind] = true;
+  const seen = readSeen() || {}; seen[kind] = cur; writeSeen({ ...keysNow(), ...seen });
+  updatePills();
+}
+function updatePills(){
+  document.querySelectorAll("#tabs button").forEach(b => {
+    const k = b.dataset.v, n = visited[k] ? 0 : fresh[k].size, pill = b.querySelector(".pill");
+    pill.hidden = !n; pill.textContent = n > 9 ? "9+" : n;
+    pill.title = n ? `${n} ${n === 1 ? "novo" : "novos"}` : "";
+  });
+}
+
 function render(){
+  visit(view);
   const q = norm($("#q").value), s = $("#supplier").value;
   $("#supplier").hidden = view !== "products";
-  $("#q").placeholder = view === "posts" ? "Buscar post…" : "Buscar produto…";
+  $("#q").placeholder = { products:"Buscar produto…", posts:"Buscar post…", videos:"Buscar vídeo…" }[view];
   $("#grid").innerHTML = "";
   if (view === "posts") return renderPosts(q);
+  if (view === "videos") return renderVideos(q);
   const list = products.filter(p => norm(p.name).includes(q) && (!s || p.supplier===s));
   $("#status").textContent = list.length ? "" : "Nenhum produto encontrado.";
   list.forEach(p=>{
@@ -251,7 +316,7 @@ function render(){
     const draw = () => {
       const v = p.vars[sel];
       el.innerHTML = `
-        <div class="img">${p.img ? `<img loading="lazy" src="${esc(p.img)}" alt="">` : esc(p.name[0])}</div>
+        <div class="img">${p.img ? `<img loading="lazy" src="${esc(p.img)}" alt="">` : esc(p.name[0])}${fresh.products.has(p.name+"|"+p.supplier) ? '<span class="new">Novo</span>' : ""}</div>
         <div class="body">
           <div><div class="name"></div><div class="sup"></div></div>
           ${p.vars.length>1 || v.cor || v.tam ? `<div class="chips">${p.vars.map((x,i)=>`<button class="chip ${i===sel?"on":""}" data-i="${i}">${esc([x.cor,x.tam].filter(Boolean).join(" · ")||"Padrão")}</button>`).join("")}</div>` : ""}
@@ -273,7 +338,7 @@ function renderPosts(q){
   list.forEach(f=>{
     const name = pretty(f.name), el = document.createElement("article"); el.className="card post";
     el.innerHTML = `
-      <div class="img"><img loading="lazy" src="${esc(thumb(f.id))}" alt=""></div>
+      <div class="img"><img loading="lazy" src="${esc(thumb(f.id))}" alt="">${fresh.posts.has(f.id) ? '<span class="new">Novo</span>' : ""}</div>
       <div class="body"><div class="name"></div><div class="share">${shareBtns}</div></div>`;
     el.querySelector(".name").textContent = name;
     el.querySelectorAll(".share button").forEach(b=>b.onclick=()=>openComposer(b.dataset.k, { name, text:cfg.rodape||"", url:thumb(f.id), imgId:f.id }));
@@ -281,23 +346,50 @@ function renderPosts(q){
   });
 }
 
+function videoText(f, name, kind){
+  const link = (kind === "ig" || kind === "fb") ? "" : `\n\n🎬 Assista: ${driveView(f.id)}`;   // Instagram/Facebook postam o arquivo, não o link
+  return `*${name}*${link}${cfg.rodape ? `\n\n${cfg.rodape}` : ""}`;
+}
+
+function renderVideos(q){
+  const list = videos.filter(f => norm(f.name).includes(q));
+  $("#status").textContent = list.length ? "" : (videos.length ? "Nenhum vídeo encontrado." : "Nenhum vídeo na pasta. (Se já há vídeos nela, o proxy do Apps Script precisa listar arquivos de vídeo.)");
+  list.forEach(f=>{
+    const name = pretty(f.name), el = document.createElement("article"); el.className="card video";
+    el.innerHTML = `
+      <div class="img"><img loading="lazy" src="${esc(thumb(f.id))}" alt="" onerror="this.remove()"><span class="play"><i>${ic("play")}</i></span>${fresh.videos.has(f.id) ? '<span class="new">Novo</span>' : ""}</div>
+      <div class="body"><div class="name"></div><div class="share">${shareBtns}</div></div>`;
+    el.querySelector(".name").textContent = name;
+    el.querySelectorAll(".share button").forEach(b=>b.onclick=()=>openComposer(b.dataset.k, { name, video:true, text:videoText(f, name, b.dataset.k), url:thumb(f.id), imgId:f.id }));
+    $("#grid").appendChild(el);
+  });
+}
+
 async function load(){
   $("#status").textContent = "Carregando…";
-  let postsErr = "";
+  let postsErr = "", videosErr = "";
   try {
-    const [rows, imgs, pst] = await Promise.all([
+    const [rows, imgs, pst, vid] = await Promise.all([
       loadSheet(), loadFolder(cfg.folder),
-      loadFolder(cfg.postsFolder).catch(e => { postsErr = e.message; return []; })
+      loadFolder(cfg.postsFolder).catch(e => { postsErr = e.message; return []; }),
+      loadFolder(cfg.videosFolder).catch(e => { videosErr = e.message; return []; })
     ]);
     products = build(rows, imgs);
     posts = pst.sort((a,b) => (b.modifiedTime||"").localeCompare(a.modifiedTime||""));
+    videos = vid.filter(f => !f.mimeType || String(f.mimeType).startsWith("video/")).sort((a,b) => (b.modifiedTime||"").localeCompare(a.modifiedTime||""));
 		const sups = [...new Set(products.map(p=>p.supplier).filter(Boolean))].sort();
 		$("#supplier").innerHTML = `<option value="">Todos os fornecedores</option>` + sups.map(s=>`<option>${esc(s)}</option>`).join("");
 		syncSupplierOptions();   // ← adicione esta linha
-		$("#tabs").hidden = !idFrom(cfg.postsFolder);
+		const hasPosts = !!idFrom(cfg.postsFolder), hasVideos = !!idFrom(cfg.videosFolder);
+		$("#tabs").hidden = !(hasPosts || hasVideos);
+		$('#tabs button[data-v="posts"]').hidden = !hasPosts;
+		$('#tabs button[data-v="videos"]').hidden = !hasVideos;
+		if (cfg.sheet) detectFresh({ products: products.length > 0, posts: !postsErr && hasPosts, videos: !videosErr && hasVideos });
+		updatePills();
 		render();
     if (!cfg.sheet) $("#status").textContent = "Exemplo de demonstração — preencha o arquivo config.js para conectar sua planilha.";
-    if (postsErr) $("#status").textContent = postsErr;
+    if (postsErr && view === "posts") $("#status").textContent = postsErr;
+    if (videosErr && view === "videos") $("#status").textContent = videosErr;
   } catch(e){ $("#status").textContent = e.message; }
   finally { hideSplash(); }
 }
@@ -336,7 +428,7 @@ document.querySelectorAll("#year, .yr").forEach(el => el.textContent = new Date(
 $("#appVersion").textContent = APP_VERSION;
 const aboutDlg = $("#about");
 $("#aboutBtn").onclick = () => {
-  $("#aboutCount").textContent = cfg.sheet ? `${products.length} produtos · ${posts.length} posts` : "Modo demonstração";
+  $("#aboutCount").textContent = cfg.sheet ? `${products.length} produtos · ${posts.length} posts · ${videos.length} vídeos` : "Modo demonstração";
   aboutDlg.showModal();
 };
 $("#aboutClose").onclick = () => aboutDlg.close();
@@ -357,13 +449,13 @@ function syncSupplierOptions() {
 
 // Abre o modal com os valores atuais
 $("#searchBtn").onclick = () => {
-  const isPosts = view === "posts";
+  const isProducts = view === "products", noun = { products:"produto", posts:"post", videos:"vídeo" }[view];
   searchQ.value = $("#q").value;
-  searchQ.placeholder = isPosts ? "Buscar post…" : "Buscar produto…";
-  $("#searchTitle").textContent = isPosts ? "Buscar post" : "Buscar produto";
-  // Esconde o select de fornecedor no modo Posts
-  searchSupplier.hidden = isPosts;
-  if (!isPosts) syncSupplierOptions();
+  searchQ.placeholder = `Buscar ${noun}…`;
+  $("#searchTitle").textContent = `Buscar ${noun}`;
+  // Esconde o select de fornecedor fora da aba Produtos
+  searchSupplier.hidden = !isProducts;
+  if (isProducts) syncSupplierOptions();
   searchDlg.showModal();
   setTimeout(() => searchQ.focus(), 100);
 };
