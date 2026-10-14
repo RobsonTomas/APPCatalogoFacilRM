@@ -655,6 +655,7 @@ a.btn {
 #searchDialog .filters select[hidden],
 #searchDialog .filters input[hidden] {
   display: none !important;
+<<<<<<< HEAD
 }
 /* Selo "Novo" */
 .card .img { position: relative }
@@ -721,3 +722,6 @@ a.btn {
 .play .ic { width: 26px; height: 26px; fill: currentColor; stroke: currentColor; margin-left: 3px }
 
 .vprev { position: relative; display: flex; justify-content: center; width: 100%; background: #000 }
+=======
+}
+>>>>>>> ae4a9fc741c10550f09c48b3b38739c24953c01b
