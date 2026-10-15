@@ -236,7 +236,7 @@ function hint(kind, file, video){
 async function videoAction(){
   const { kind, item } = cur, link = driveView(item.imgId);
   let text = $("#cText").value;
-  if ((kind === "wa" || kind === "more") && !text.includes(link)) text += `\n\n🎬 Assista: ${link}`;   // sem o arquivo, vai o link
+  if ((kind === "wa" || kind === "more") && !text.includes(link)) text += `\n\nAssista ao vídeo:\n${link}`;   // sem o arquivo, vai o link (sem emoji: no endereço wa.me ele pode chegar quebrado)
   if (kind === "wa") return void openUrl(`https://wa.me/?text=${encodeURIComponent(text)}`);
   if (kind === "more" && navigator.share){
     try { await navigator.share({ title:item.name, text }); } catch (e) {}
