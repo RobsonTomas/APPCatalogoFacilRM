@@ -130,9 +130,35 @@ async function fetchImageFile(id, name){
   }
   return null;
 }
+// Vídeo: o proxy entrega o arquivo em base64 (até o limite definido no proxy.gs); sem isso, cai no plano B (baixar + legenda)
+const VEXT = { "video/mp4":"mp4", "video/quicktime":"mov", "video/webm":"webm", "video/x-matroska":"mkv", "video/3gpp":"3gp" };
+async function fetchVideoFile(id, name){
+  if (!cfg.proxyUrl) return null;
+  try {
+    const r = await fetch(`${cfg.proxyUrl}?fileId=${encodeURIComponent(id)}`); const j = await r.json();
+    if (!r.ok || j.error || !j.data) return null;
+    const bin = atob(j.data), arr = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+    const mime = j.mimeType || "video/mp4";
+    return new File([arr], `${slug(name)}.${VEXT[mime] || mime.split("/")[1] || "mp4"}`, { type:mime });
+  } catch { return null; }
+}
 const canShareFile = f => !!(f && navigator.canShare && navigator.canShare({ files:[f] }));
 const copyText = async t => { try { await navigator.clipboard.writeText(t); return true; } catch { return false; } };
 function downloadFile(f){ const a = document.createElement("a"); a.href = URL.createObjectURL(f); a.download = f.name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href), 4000); }
+
+// ===== Player de vídeo dentro do app (player do Drive embutido) =====
+const playerDlg = $("#player");
+function playVideo(id, name){
+  $("#pTitle").textContent = name;
+  $("#pOpen").href = driveView(id);
+  $("#pFrame").src = `https://drive.google.com/file/d/${encodeURIComponent(id)}/preview`;
+  playerDlg.showModal();
+}
+function stopVideo(){ $("#pFrame").src = "about:blank"; }
+$("#pClose").onclick = () => playerDlg.close();
+playerDlg.addEventListener("click", e => { if (e.target === playerDlg) playerDlg.close(); });
+playerDlg.addEventListener("close", stopVideo);
 
 // ===== Prévia / edição antes de enviar =====
 const dlg = $("#composer");
@@ -142,17 +168,17 @@ const KIND = {
   ig:   { icon:"ig",    label:"Enviar no Instagram", title:"Instagram" },
   more: { icon:"share", label:"Compartilhar",        title:"Compartilhar" },
 };
-const VKIND = {   // vídeo: o arquivo não vai anexado, então WhatsApp envia o link e Instagram/Facebook baixam o vídeo
-  wa:   { label:"Enviar link no WhatsApp" },
-  fb:   { label:"Baixar vídeo e postar no Facebook" },
-  ig:   { label:"Baixar vídeo e postar no Instagram" },
-  more: { label:"Compartilhar link do vídeo" },
+const VKIND = {   // vídeo: o mesmo botão das fotos; se o arquivo não carregar, entra o plano B (veja videoHint)
+  wa:   { label:"Enviar vídeo no WhatsApp" },
+  fb:   { label:"Enviar vídeo no Facebook" },
+  ig:   { label:"Enviar vídeo no Instagram" },
+  more: { label:"Compartilhar vídeo" },
 };
-const videoHint = kind => ({
-  wa:   "O WhatsApp abre e você escolhe o contato. Vai o texto com o link do vídeo (quem receber assiste pelo link).",
-  more: "Abre o menu do celular com o texto e o link do vídeo.",
-  fb:   "O vídeo é baixado e a legenda é copiada. Depois, ao criar a postagem, escolha o vídeo na galeria e cole a legenda.",
-  ig:   "O vídeo é baixado e a legenda é copiada. Depois, ao criar a postagem, escolha o vídeo na galeria e cole a legenda.",
+const videoHint = kind => ({    // plano B: o vídeo não pôde ser carregado (muito grande ou proxy sem a nova versão)
+  wa:   "Não foi possível anexar o vídeo (arquivo grande demais). O WhatsApp abre e vai o texto com o link do vídeo.",
+  more: "Não foi possível anexar o vídeo (arquivo grande demais). Vai o texto com o link do vídeo.",
+  fb:   "Não foi possível anexar o vídeo (arquivo grande demais). Ele será baixado e a legenda copiada: escolha o vídeo na galeria ao postar.",
+  ig:   "Não foi possível anexar o vídeo (arquivo grande demais). Ele será baixado e a legenda copiada: escolha o vídeo na galeria ao postar.",
 }[kind]);
 let cur = null;
 
@@ -174,10 +200,21 @@ function openComposer(kind, item){
   const box = $("#cImg");
   box.hidden = !item.url;
   box.innerHTML = !item.url ? "" : item.video
-    ? `<a class="vprev" href="${esc(driveView(item.imgId))}" target="_blank" rel="noopener" title="Assistir"><img src="${esc(item.url)}" alt="" onerror="this.remove()"><span class="play"><i>${ic("play")}</i></span></a>`
+    ? `<button type="button" class="vprev" title="Assistir"><img src="${esc(item.url)}" alt="" onerror="this.remove()"><span class="play"><i>${ic("play")}</i></span></button>`
     : `<img src="${esc(item.url)}" alt="">`;
+  const vp = box.querySelector(".vprev"); if (vp) vp.onclick = () => playVideo(item.imgId, item.name);
   $("#cHint").textContent = "Carregando foto…";
-  if (item.video){ $("#cHint").textContent = videoHint(kind); }
+  $("#cMain").disabled = false;
+  if (item.video){
+    $("#cMain").disabled = true;                                   // só libera quando o vídeo estiver pronto (ou falhar)
+    $("#cHint").textContent = "Preparando o vídeo para envio… pode levar alguns segundos.";
+    cur.filePromise = fetchVideoFile(item.imgId, item.name).then(f => {
+      if (!cur || cur.item !== item) return f;
+      cur.file = f; $("#cMain").disabled = false;
+      $("#cHint").textContent = f ? hint(kind, f, true) : videoHint(kind);
+      return f;
+    });
+  }
   else if (item.imgId){
     cur.filePromise = fetchImageFile(item.imgId, item.name).then(f => {
       if (!cur) return null; cur.file = f;
@@ -188,15 +225,18 @@ function openComposer(kind, item){
   dlg.showModal();
 }
 
-function hint(kind, file){
+function hint(kind, file, video){
+  const obj = video ? "vídeo" : "foto";
   if (!file) return kind==="wa" ? "Ao enviar, o WhatsApp abre e você escolhe o contato." : "Sem foto: será enviado só o texto.";
-  if (canShareFile(file)) return "Vai abrir o menu do celular: escolha o app e o contato. A foto vai junto." + (kind==="ig"||kind==="fb" ? " O texto é copiado para você colar na legenda." : "");
-  return "Este navegador não anexa fotos direto: o texto é copiado e a foto é baixada para você anexar.";
+  if (canShareFile(file)) return `Vai abrir o menu do celular: escolha o app e o contato. O ${obj} vai junto.` + (kind==="ig"||kind==="fb" ? " O texto é copiado para você colar na legenda." : "");
+  return `Este navegador não anexa ${obj === "vídeo" ? "vídeos" : "fotos"} direto: o texto é copiado e o ${obj} é baixado para você anexar.`;
 }
 
 // Vídeo: WhatsApp = texto com link; Instagram/Facebook = baixa o vídeo + copia a legenda
 async function videoAction(){
-  const { kind, item } = cur, text = $("#cText").value;
+  const { kind, item } = cur, link = driveView(item.imgId);
+  let text = $("#cText").value;
+  if ((kind === "wa" || kind === "more") && !text.includes(link)) text += `\n\n🎬 Assista: ${link}`;   // sem o arquivo, vai o link
   if (kind === "wa") return void openUrl(`https://wa.me/?text=${encodeURIComponent(text)}`);
   if (kind === "more" && navigator.share){
     try { await navigator.share({ title:item.name, text }); } catch (e) {}
@@ -208,7 +248,7 @@ async function videoAction(){
 }
 
 async function mainAction(){
-  if (cur.item.video) return videoAction();
+  if (cur.item.video && !(cur.file || await cur.filePromise)) return videoAction();   // vídeo não carregou: plano B
   const { kind } = cur, text = $("#cText").value;
   if (kind !== "wa") await copyText(text);                 // Instagram/Facebook ignoram o texto do compartilhamento
   const file = cur.file || await cur.filePromise;
@@ -223,7 +263,7 @@ async function mainAction(){
   // Alternativa (computador / navegador sem compartilhamento)
   if (kind === "wa" && !file) return void window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
   await copyText(text); if (file) downloadFile(file);
-  toast(file ? "Texto copiado e foto baixada. Anexe na conversa." : "Texto copiado!");
+  toast(file ? `Texto copiado e ${file.type.startsWith("video/") ? "vídeo" : "foto"} baixado. Anexe na conversa.` : "Texto copiado!");
   const url = { wa:`https://wa.me/?text=${encodeURIComponent(text)}`, fb:"https://www.facebook.com/", ig:"https://www.instagram.com/direct/inbox/" }[kind];
   if (url) window.open(url, "_blank");
 }
@@ -258,7 +298,7 @@ $("#cCod").onclick = () => toggleHeader("cod");
 $("#cMain").onclick = mainAction;
 $("#cWa").onclick = () => window.open(`https://wa.me/?text=${encodeURIComponent($("#cText").value)}`, "_blank");   // sem número: o WhatsApp pede o contato
 $("#cCopy").onclick = async () => toast(await copyText($("#cText").value) ? "Texto copiado!" : "Não foi possível copiar.");
-$("#cSave").onclick = async () => { if (cur.item.video) return openUrl(driveDownload(cur.item.imgId)); const f = cur.file || await cur.filePromise; f ? downloadFile(f) : toast("Não foi possível baixar a foto."); };
+$("#cSave").onclick = async () => { const f0 = cur.file || await cur.filePromise; if (cur.item.video && !f0) return openUrl(driveDownload(cur.item.imgId)); const f = f0; f ? downloadFile(f) : toast("Não foi possível baixar a foto."); };
 $("#cClose").onclick = () => dlg.close();
 dlg.addEventListener("click", e => { if (e.target === dlg) dlg.close(); });
 dlg.addEventListener("close", () => { cur = null; });
@@ -346,9 +386,8 @@ function renderPosts(q){
   });
 }
 
-function videoText(f, name, kind){
-  const link = (kind === "ig" || kind === "fb") ? "" : `\n\n🎬 Assista: ${driveView(f.id)}`;   // Instagram/Facebook postam o arquivo, não o link
-  return `*${name}*${link}${cfg.rodape ? `\n\n${cfg.rodape}` : ""}`;
+function videoText(f, name){
+  return `*${name}*${cfg.rodape ? `\n\n${cfg.rodape}` : ""}`;
 }
 
 function renderVideos(q){
@@ -360,7 +399,8 @@ function renderVideos(q){
       <div class="img"><img loading="lazy" src="${esc(thumb(f.id))}" alt="" onerror="this.remove()"><span class="play"><i>${ic("play")}</i></span>${fresh.videos.has(f.id) ? '<span class="new">Novo</span>' : ""}</div>
       <div class="body"><div class="name"></div><div class="share">${shareBtns}</div></div>`;
     el.querySelector(".name").textContent = name;
-    el.querySelectorAll(".share button").forEach(b=>b.onclick=()=>openComposer(b.dataset.k, { name, video:true, text:videoText(f, name, b.dataset.k), url:thumb(f.id), imgId:f.id }));
+    el.querySelector(".img").onclick = () => playVideo(f.id, name);
+    el.querySelectorAll(".share button").forEach(b=>b.onclick=()=>openComposer(b.dataset.k, { name, video:true, text:videoText(f, name), url:thumb(f.id), imgId:f.id }));
     $("#grid").appendChild(el);
   });
 }

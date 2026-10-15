@@ -721,3 +721,10 @@ a.btn {
 .play .ic { width: 26px; height: 26px; fill: currentColor; stroke: currentColor; margin-left: 3px }
 
 .vprev { position: relative; display: flex; justify-content: center; width: 100%; background: #000 }
+
+/* Player e prévia de vídeo */
+.card.video .img { cursor: pointer }
+button.vprev { border: 0; padding: 0; cursor: pointer; font: inherit }
+.pframe { height: min(62vh, 520px); background: #000; border-radius: 12px; overflow: hidden }
+.pframe iframe { width: 100%; height: 100%; border: 0 }
+.btn:disabled { opacity: .6; cursor: wait }

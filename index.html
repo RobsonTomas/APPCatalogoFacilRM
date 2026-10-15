@@ -146,6 +146,18 @@
   <svg class="ic"><use href="#i-arrow-up"/></svg>
 </button>
 
+<!-- Player de vídeo -->
+<dialog id="player">
+  <div class="sheet">
+    <div class="sheet-head">
+      <h2 id="pTitle"></h2>
+      <button class="icon" id="pClose" aria-label="Fechar"><svg class="ic"><use href="#i-x"/></svg></button>
+    </div>
+    <div class="pframe"><iframe id="pFrame" title="Vídeo" allow="autoplay; fullscreen" allowfullscreen></iframe></div>
+    <a class="btn ghost" id="pOpen" target="_blank" rel="noopener"><svg class="ic"><use href="#i-share"/></svg>Abrir no Drive</a>
+  </div>
+</dialog>
+
 <div id="toast" class="toast"></div>
 <script src="config.js"></script>
 <script src="app.js"></script>
