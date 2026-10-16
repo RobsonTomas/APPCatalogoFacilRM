@@ -340,6 +340,57 @@ function updatePills(){
   });
 }
 
+// ===== Popup "Novidades" ao abrir (resumo do que chegou desde a última visita) =====
+// Usa a mesma detecção do selo "Novo", mas guarda à parte o que já foi anunciado: cada novidade aparece no popup uma única vez.
+const NEWS_KEY = "catalogo-aviso";
+const readNews = () => { try { return JSON.parse(localStorage.getItem(NEWS_KEY)); } catch { return null; } };
+const writeNews = o => { try { localStorage.setItem(NEWS_KEY, JSON.stringify(o)); } catch {} };
+const NEWS_KINDS = {
+  products: { one:"produto novo", many:"produtos novos", icon:"bag" },
+  posts:    { one:"post novo",    many:"posts novos",    icon:"image" },
+  videos:   { one:"vídeo novo",   many:"vídeos novos",   icon:"video" },
+};
+function newsName(k, id){
+  if (k === "products") return id.slice(0, id.lastIndexOf("|"));            // chave = "nome|fornecedor"
+  const f = (k === "posts" ? posts : videos).find(x => x.id === id);
+  return f ? pretty(f.name) : "";
+}
+function afterSplash(fn){            // o popup só abre depois que a tela de abertura sumiu
+  if (!$("#splash")) return fn();
+  let done = false; const go = () => { if (!done){ done = true; clearInterval(t); fn(); } };
+  const t = setInterval(() => { if (!$("#splash")) go(); }, 150);
+  setTimeout(go, 10000);
+}
+function showNews(ok){
+  if (document.querySelector("dialog[open]")) return;          // tem outra janela aberta: tenta de novo na próxima carga
+  const now = keysNow(), told = readNews() || {}, items = {};
+  for (const k of Object.keys(NEWS_KINDS)){
+    if (!ok[k]) continue;
+    items[k] = [...fresh[k]].filter(x => !(told[k] || []).includes(x));
+    told[k] = now[k];                                           // tudo que existe agora conta como anunciado
+  }
+  writeNews(told);
+  const kinds = Object.keys(items).filter(k => items[k].length);
+  if (!kinds.length) return;
+  $("#newsList").innerHTML = kinds.map(k => {
+    const ids = items[k], n = ids.length, K = NEWS_KINDS[k];
+    const names = ids.map(id => newsName(k, id)).filter(Boolean), shown = names.slice(0, 3), more = n - shown.length;
+    return `<button type="button" class="news-row" data-v="${k}">
+      <span class="ni">${ic(K.icon)}</span>
+      <span><b>${n} ${n === 1 ? K.one : K.many}</b><small>${esc(shown.join(", "))}${more > 0 ? ` e mais ${more}` : ""}</small></span>
+      <span class="go">Ver ›</span></button>`;
+  }).join("");
+  $("#newsList").querySelectorAll(".news-row").forEach(b => b.onclick = () => {
+    $("#news").close();
+    document.querySelector(`#tabs button[data-v="${b.dataset.v}"]`)?.click();
+    window.scrollTo({ top: 0 });
+  });
+  $("#news").showModal();
+}
+$("#newsClose").onclick = () => $("#news").close();
+$("#newsOk").onclick = () => $("#news").close();
+$("#news").addEventListener("click", e => { if (e.target === $("#news")) $("#news").close(); });
+
 function render(){
   visit(view);
   const q = norm($("#q").value), s = $("#supplier").value;
@@ -424,7 +475,8 @@ async function load(){
 		$("#tabs").hidden = !(hasPosts || hasVideos);
 		$('#tabs button[data-v="posts"]').hidden = !hasPosts;
 		$('#tabs button[data-v="videos"]').hidden = !hasVideos;
-		if (cfg.sheet) detectFresh({ products: products.length > 0, posts: !postsErr && hasPosts, videos: !videosErr && hasVideos });
+		const okNews = { products: products.length > 0, posts: !postsErr && hasPosts, videos: !videosErr && hasVideos };
+		if (cfg.sheet) { detectFresh(okNews); afterSplash(() => showNews(okNews)); }
 		updatePills();
 		render();
     if (!cfg.sheet) $("#status").textContent = "Exemplo de demonstração — preencha o arquivo config.js para conectar sua planilha.";

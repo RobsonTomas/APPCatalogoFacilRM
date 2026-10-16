@@ -728,3 +728,36 @@ button.vprev { border: 0; padding: 0; cursor: pointer; font: inherit }
 .pframe { height: min(62vh, 520px); background: #000; border-radius: 12px; overflow: hidden }
 .pframe iframe { width: 100%; height: 100%; border: 0 }
 .btn:disabled { opacity: .6; cursor: wait }
+
+/* Popup de novidades */
+.news-bell { vertical-align: -4px; margin-right: 8px; color: var(--accent) }
+.news-list { display: flex; flex-direction: column; gap: 8px }
+
+.news-row {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	width: 100%;
+	padding: 12px;
+	border: 1px solid var(--line);
+	border-radius: 14px;
+	background: var(--surface);
+	color: var(--text);
+	text-align: left;
+	cursor: pointer
+}
+
+.news-row .ni {
+	width: 40px;
+	height: 40px;
+	border-radius: 12px;
+	background: var(--accent-soft);
+	color: var(--accent);
+	display: grid;
+	place-items: center;
+	flex: none
+}
+
+.news-row b { display: block; font-size: .95rem }
+.news-row small { display: block; color: var(--muted); font-size: .8rem; line-height: 1.3; margin-top: 2px }
+.news-row .go { margin-left: auto; color: var(--accent); font-weight: 700; font-size: .85rem; white-space: nowrap }
